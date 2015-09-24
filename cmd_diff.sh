@@ -1,25 +1,44 @@
 #!/bin/bash
+
 #Hyungwan Seo
 
-TARGET_DIR_PATH=/mnt/s
-#TARGET_DIR_SIZE=`du -s $TARGET_DIR_PATH | grep -o '^[0-9.0-9]*'`
-RESULT_FILE=[result]Only-CentOS_cmd_list.txt
-S_CMD_LIST=s_cmd_list.txt
-CENTOS_APPEND_CMD_LIST=CentOS_append_cmd_list.txt
+SECOND_OS_DIR_PATH=/mnt/s
+OLD_CMDS_TXT=old-OS_cmds.txt
+NEW_CMDS_TXT=new-OS_cmds.txt
+NEW_CMDS_TXT_PROCESSING=$NEW_CMDS_TXT.bak
 
-SBIN=/sbin
-USR_SBIN=/usr/sbin
+RESULT_TXT=result.txt
 
+function create_cmd_txt()
+{
+	    #arr=("/bin" "/usr/bin" "/sbin" "/usr/sbin" "/usr/local/bin" "/usr/local/sbin")
 
-#1. /sbin과 /usr/sbin
-#1-1. s
-#diff -rq $TARGET_DIR_PATH$SBIN $TARGET_DIR_PATH$USR_SBIN | sort | grep "Only in" | awk -F " " '{print $3, $4}' >> $S_CMD_LIST
-diff -rq $TARGET_DIR_PATH$SBIN $TARGET_DIR_PATH$USR_SBIN | sort | grep "Only in" | awk -F " " '{print $4}' >> $S_CMD_LIST
+	    arr=("/usr/bin") # [ 명령어는 삭제해야 함. [를 지우지 않으면 중복된 명령어를 제거하지 못함.
+	    for ((idx=0; idx < ${#arr[@]}; idx++))
+	    do
+	        ls --color=no $SECOND_OS_DIR_PATH${arr[$idx]} | sort >> $OLD_CMDS_TXT
+	        ls --color=no ${arr[$idx]} | sort >> $NEW_CMDS_TXT                                                
+	    done
+}
 
-#1-2. CentOS 7 (1503) minimal
-#diff -rq $SBIN $TARGET_DIR_PATH$SBIN | sort | grep "Only in $SBIN" | awk -F" " '{print $3, $4}' >> $CENTOS_APPEND_CMD_LIST
-diff -rq $SBIN $TARGET_DIR_PATH$SBIN | sort | grep "Only in $SBIN" | awk -F" " '{print $4}' >> $CENTOS_APPEND_CMD_LIST
+function exclude_old_cmds()
+{
+	    txt_lines=`cat $OLD_CMDS_TXT | wc -l`
+	    readarray -t s_arr < $OLD_CMDS_TXT #텍스트 파일의 내용을 배열에 저장한다.
 
-#1-3. 1-1과 1-2를 diff
-diff -y s_cmd_list.txt CentOS_append_cmd_list.txt | grep '|' | awk -F " " '{print $3}' >> $RESULT_FILE
-diff -y s_cmd_list.txt CentOS_append_cmd_list.txt | grep '>' | awk -F " " '{print $2}' >> $RESULT_FILE
+	    cp $NEW_CMDS_TXT $NEW_CMDS_TXT_PROCESSING #sed 작업할 문서 생성
+
+	    for ((idx=0; idx<txt_lines; idx++))
+	    do
+	        echo -e "${s_arr[$idx]}\n"
+
+	        sed -e "/${s_arr[$idx]}/d" $NEW_CMDS_TXT_PROCESSING > $RESULT_TXT
+
+ 	       yes | cp $RESULT_TXT $NEW_CMDS_TXT_PROCESSING
+	    done
+
+		rm -rf $NEW_CMDS_TXT_PROCESSING #작업 파일 삭제
+}
+
+#create_cmd_txt
+exclude_old_cmds
